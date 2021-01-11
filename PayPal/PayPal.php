@@ -94,6 +94,8 @@ class PayPal {
 			$id = $id + 1;
 			
 			if(isset($item['name'], $item['amount'], $item['quantity'])){
+				if(isset($item['id'])) $preferenceObj["item_number_{$id}"] = $item['id'];
+				
 				$preferenceObj["item_name_{$id}"] = $item['name'];
 				$preferenceObj["amount_{$id}"] = $item['amount'];
 				$preferenceObj["quantity_{$id}"] = $item['quantity'];
