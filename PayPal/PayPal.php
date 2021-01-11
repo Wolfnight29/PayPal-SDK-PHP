@@ -130,30 +130,47 @@ class PayPal {
      * @return boolean
      */
 	public function ValidIPN(){
-		if(empty($_POST)){
-			throw new PayPalException('No POST data found.');
+		$raw_post_data = file_get_contents('php://input');
+		$raw_post_array = explode('&', $raw_post_data);
+		
+		$myPost = [];
+		
+		foreach($raw_post_array as $keyval){
+			$keyval = explode('=', $keyval);
+			
+			if(count($keyval) == 2){
+				$myPost[$keyval[0]] = urldecode($keyval[1]);
+			}
 		}
 		
-		$curl = curl_init();
-
-		curl_setopt($curl, CURLOPT_URL, 'https://' . ($this->sandbox_mode() ? 'sandbox' : 'www') . '.paypal.com/cgi-bin/webscr?cmd=_notify-validate');
-		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl, CURLOPT_POST, true);
-		curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($_POST));
-
-		$response = curl_exec($curl);
-		$error = curl_error($curl);
-		$errno = curl_errno($curl);
-
-		curl_close($curl);
+		$req = 'cmd=_notify-validate';
+		
+		foreach($myPost as $key => $value){
+			$value = urlencode($value);
+			
+			$req .= "&{$key}={$value}";
+		}
+		
+		$ch = curl_init('https://ipnpb.paypal.com/cgi-bin/webscr');
+		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $req);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+		curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Connection: Close'));
+		
+		$response = curl_exec($ch);
+		
+		curl_close($ch);
 		
 		if($response == 'VERIFIED'){
 			return true;
 		} else if($response == 'INVALID'){
 			return false;
-		} else {
-			throw new PayPalException('Unexpected response from PayPal.');
 		}
+		
+		throw new PayPalException('Unexpected response from PayPal.');
 	}
 }
