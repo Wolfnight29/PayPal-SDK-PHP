@@ -131,8 +131,7 @@ class PayPal {
 	 *
      * @return boolean
      */
-	public function ValidIPN(){
-		$raw_post_data = file_get_contents('php://input');
+	public function validIPN($raw_post_data){
 		$raw_post_array = explode('&', $raw_post_data);
 		
 		$myPost = [];
@@ -154,6 +153,7 @@ class PayPal {
 		}
 		
 		$ch = curl_init('https://ipnpb.paypal.com/cgi-bin/webscr');
+		
 		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 		curl_setopt($ch, CURLOPT_POST, 1);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
@@ -174,5 +174,50 @@ class PayPal {
 		}
 		
 		throw new PayPalException('Unexpected response from PayPal.');
+	}
+	
+	    /**
+     * Process IPN
+	 *
+     * @return boolean
+     */
+	public function getArrayIPN($raw_post){
+		$array = [];
+		
+		if(!empty($raw_post)){
+			if(substr($raw_post, -1) == '"' && substr($raw_post, 0, 1) == '"'){
+				$raw_post = substr($raw_post, 1, -1);
+			}
+			
+			$pairs = explode('&', $raw_post);
+			
+			foreach($pairs as $pair){
+				list($key, $value) = explode('=', $pair, 2);
+				
+				$key   = utf8_encode(urldecode($key));
+				$value = utf8_encode(urldecode($value));
+				
+				//preg_match('/(\w+)(?:\[(\d+)\])?(?:\.(\w+))?/', $key, $key_parts);
+				preg_match('/(\w+)(?:(?:\[|\()(\d+)(?:\]|\)))?(?:\.(\w+))?/', $key, $key_parts);
+				
+				switch(count($key_parts)){
+					case 4:
+						// Original key format: somekey[x].property
+						// Converting to $array[somekey][x][property]
+						$array[$key_parts[1]][$key_parts[2]][$key_parts[3]] = $value;
+						break;
+					case 3:
+						// Original key format: somekey[x] Converting to $array[somkey][x]
+						$array[$key_parts[1]][$key_parts[2]] = $value;
+						break;
+					default:
+						// No special format
+						$array[$key] = str_replace('^^^', '&', $value);
+						break;
+				}
+			}
+		}
+		
+		return $array;
 	}
 }
