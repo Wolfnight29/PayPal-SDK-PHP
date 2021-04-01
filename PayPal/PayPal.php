@@ -88,6 +88,8 @@ class PayPal {
 			'upload' => 1,
 			'business' => $this->email,
 			'currency_code' => $preference['currency'],
+			'no_shipping' => '1',
+			'address_override' => '0'
 		];
 		
 		foreach($preference['items'] as $id => $item){
